@@ -1,0 +1,2384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expression Trees</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <script>document.documentElement.classList.add('js');</script>
+    <style>
+        :root {
+            --blue-900: #0b2a5b;
+            --blue-800: #123a7a;
+            --blue-700: #1d4ed8;
+            --blue-600: #2563eb;
+            --blue-500: #3b82f6;
+            --blue-300: #93c5fd;
+            --blue-200: #bfdbfe;
+            --blue-100: #dbeafe;
+            --blue-50: #eff6ff;
+
+            --ink: #0a1a33;
+            --muted: #4b5f7a;
+            --line: #d8e4f5;
+            --white: #ffffff;
+
+            --red: #dc2626;
+            --red-soft: #fee2e2;
+            --green: #15803d;
+            --green-soft: #dcfce7;
+
+            --code-bg: #0b1f3f;
+            --code-fg: #e4edff;
+
+            --font-display: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Courier New', monospace;
+
+            --shadow-sm: 0 2px 8px rgba(11, 42, 91, 0.06);
+            --shadow-md: 0 10px 30px rgba(11, 42, 91, 0.10);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-display);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background: var(--white);
+            color: var(--ink);
+            overflow-x: hidden;
+            padding-bottom: 4.5rem;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        code, pre, .mono {
+            font-family: var(--font-mono);
+        }
+
+        /* ---------- scroll progress ---------- */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            width: 0%;
+            background: linear-gradient(90deg, var(--blue-700), var(--blue-500));
+            z-index: 10000;
+            transition: width 0.15s linear;
+        }
+
+        /* ---------- screen ---------- */
+        .screen {
+            position: relative;
+            min-height: 100vh;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 1.5rem 5.5rem;
+            border-bottom: 1px solid var(--line);
+            background: var(--white);
+        }
+
+        .screen.tint {
+            background: linear-gradient(180deg, var(--blue-50) 0%, var(--white) 100%);
+        }
+
+        .wrap {
+            width: 100%;
+            max-width: 1080px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.1rem;
+        }
+
+        .cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.75rem;
+            align-items: center;
+        }
+
+        .cols-top {
+            align-items: start;
+        }
+
+        /* ---------- reveal ---------- */
+        .js .wrap > * {
+            opacity: 0;
+            transform: translateY(18px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+
+        .js .screen.on .wrap > * {
+            opacity: 1;
+            transform: none;
+        }
+
+        .js .screen.on .wrap > *:nth-child(1) { transition-delay: 0.05s; }
+        .js .screen.on .wrap > *:nth-child(2) { transition-delay: 0.13s; }
+        .js .screen.on .wrap > *:nth-child(3) { transition-delay: 0.21s; }
+        .js .screen.on .wrap > *:nth-child(4) { transition-delay: 0.29s; }
+        .js .screen.on .wrap > *:nth-child(5) { transition-delay: 0.37s; }
+        .js .screen.on .wrap > *:nth-child(6) { transition-delay: 0.45s; }
+
+        /* ---------- typography ---------- */
+        .badge {
+            display: inline-block;
+            align-self: flex-start;
+            padding: 0.3rem 0.85rem;
+            border-radius: 9999px;
+            background: var(--blue-50);
+            color: var(--blue-700);
+            border: 1px solid var(--blue-200);
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
+
+        h1 {
+            font-size: clamp(2.6rem, 7vw, 4.4rem);
+            font-weight: 700;
+            line-height: 1.05;
+            letter-spacing: -0.02em;
+            color: var(--blue-900);
+        }
+
+        h1 .grad {
+            background: linear-gradient(110deg, var(--blue-700) 0%, var(--blue-500) 55%, var(--blue-900) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: var(--blue-700);
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: clamp(1.6rem, 3.4vw, 2.35rem);
+            font-weight: 700;
+            line-height: 1.18;
+            letter-spacing: -0.015em;
+            color: var(--blue-900);
+        }
+
+        h3 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--blue-700);
+        }
+
+        p.subtitle {
+            font-size: 1.05rem;
+            color: var(--muted);
+            line-height: 1.55;
+            max-width: 62ch;
+        }
+
+        strong {
+            color: var(--ink);
+        }
+
+        code {
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+            background: var(--blue-50);
+            border: 1px solid var(--blue-100);
+            color: var(--blue-700);
+            padding: 0.05em 0.35em;
+            border-radius: 5px;
+        }
+
+        /* ---------- hero ---------- */
+        .hero-hint {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--muted);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.9rem;
+            border: 1px dashed var(--blue-200);
+            border-radius: 9999px;
+            background: var(--white);
+            align-self: flex-start;
+        }
+
+        .hero-hint::after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-right: 2px solid var(--blue-600);
+            border-bottom: 2px solid var(--blue-600);
+            transform: rotate(45deg);
+            animation: nudge 1.6s ease-in-out infinite;
+        }
+
+        @keyframes nudge {
+            0%, 100% { transform: rotate(45deg) translate(0, 0); opacity: 0.4; }
+            50% { transform: rotate(45deg) translate(3px, 3px); opacity: 1; }
+        }
+
+        .ds-visual {
+            position: relative;
+            background: var(--white);
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            box-shadow: var(--shadow-md);
+            padding: 1.25rem;
+            overflow: hidden;
+        }
+
+        .ds-visual::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(var(--blue-200) 1px, transparent 1px);
+            background-size: 22px 22px;
+            opacity: 0.5;
+        }
+
+        .ds-visual svg {
+            position: relative;
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .ds-visual .edge {
+            stroke: var(--blue-300);
+            stroke-width: 2;
+            stroke-dasharray: 6 6;
+            animation: dash 22s linear infinite;
+        }
+
+        @keyframes dash {
+            to { stroke-dashoffset: -120; }
+        }
+
+        .ds-visual .node circle {
+            fill: var(--white);
+            stroke: var(--blue-600);
+            stroke-width: 2.5;
+            filter: drop-shadow(0 4px 8px rgba(11, 42, 91, 0.15));
+        }
+
+        .ds-visual .node text {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 20px;
+            fill: var(--blue-800);
+            text-anchor: middle;
+        }
+
+        .ds-visual .node {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: bob 5.5s ease-in-out infinite;
+        }
+
+        .ds-visual .n2 { animation-delay: -1.2s; }
+        .ds-visual .n3 { animation-delay: -2.4s; }
+        .ds-visual .n4 { animation-delay: -0.6s; }
+        .ds-visual .n5 { animation-delay: -1.8s; }
+        .ds-visual .n6 { animation-delay: -3s; }
+        .ds-visual .n7 { animation-delay: -4.2s; }
+
+        @keyframes bob {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        /* ---------- questions list ---------- */
+        .q-list {
+            list-style: none;
+            border-top: 1px solid var(--line);
+        }
+
+        .q-list li {
+            display: flex;
+            align-items: center;
+            gap: 1.1rem;
+            padding: 1.05rem 0.6rem;
+            border-bottom: 1px solid var(--line);
+            transition: background 0.25s ease, transform 0.25s ease;
+        }
+
+        .q-list li:hover {
+            background: var(--blue-50);
+            transform: translateX(6px);
+        }
+
+        .q-num {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--blue-600);
+            background: var(--blue-50);
+            border: 1px solid var(--blue-200);
+            border-radius: 8px;
+            padding: 0.35rem 0.6rem;
+            min-width: 46px;
+            text-align: center;
+            letter-spacing: 0.05em;
+        }
+
+        .q-text {
+            font-size: 1.08rem;
+            font-weight: 500;
+            color: var(--ink);
+            line-height: 1.45;
+        }
+
+        /* ---------- cards ---------- */
+        .card {
+            background: var(--white);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 1.4rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card.accent-blue { border-left: 4px solid var(--blue-600); }
+        .card.accent-green { border-left: 4px solid var(--green); }
+        .card.accent-red { border-left: 4px solid var(--red); }
+
+        .card-title {
+            font-size: 1.08rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--blue-900);
+        }
+
+        .card.accent-green .card-title { color: var(--green); }
+        .card.accent-red .card-title { color: var(--red); }
+
+        .card-desc {
+            font-size: 0.95rem;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .stack-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .stack-list li {
+            background: var(--white);
+            border: 1px solid var(--line);
+            border-left: 4px solid var(--blue-600);
+            border-radius: 14px;
+            padding: 1.15rem 1.25rem;
+            font-size: 1rem;
+            color: var(--muted);
+            line-height: 1.55;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .stack-list li strong {
+            display: block;
+            color: var(--blue-800);
+            font-size: 1.02rem;
+            margin-bottom: 0.25rem;
+        }
+
+        /* ---------- traversals ---------- */
+        .trav-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .trav-list li {
+            display: flex;
+            align-items: baseline;
+            gap: 0.9rem;
+            background: var(--white);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 0.9rem 1.1rem;
+            font-size: 0.98rem;
+            color: var(--muted);
+            line-height: 1.5;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .trav-tag {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--blue-700);
+            background: var(--blue-50);
+            border: 1px solid var(--blue-200);
+            padding: 0.2rem 0.55rem;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        /* ---------- ascii / code ---------- */
+        .ascii {
+            background: var(--code-bg);
+            color: var(--blue-300);
+            border: 1px solid var(--blue-900);
+            border-radius: 14px;
+            padding: 1.3rem 1.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.92rem;
+            line-height: 1.5;
+            white-space: pre;
+            overflow-x: auto;
+            box-shadow: var(--shadow-md);
+        }
+
+        .ascii.ok { color: #86efac; }
+        .ascii.warn { color: #fca5a5; }
+
+        /* ---------- tree stepper (slide 5) ---------- */
+        .sim {
+            display: grid;
+            grid-template-columns: 1.05fr 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        .sim-stage {
+            background: var(--code-bg);
+            border: 1px solid var(--blue-900);
+            border-radius: 16px;
+            padding: 1.4rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .sim-tree {
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            white-space: pre;
+            color: var(--blue-300);
+            min-height: 175px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow-x: auto;
+            transition: opacity 0.25s ease;
+        }
+
+        .sim-controls {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.1rem;
+        }
+
+        .sim-side {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 0.9rem;
+            align-items: flex-start;
+            background: var(--white);
+            border: 1px solid var(--line);
+            border-left: 4px solid var(--blue-600);
+            border-radius: 12px;
+            padding: 0.95rem 1.05rem;
+            font-size: 0.95rem;
+            color: var(--muted);
+            line-height: 1.5;
+            box-shadow: var(--shadow-sm);
+            animation: stepIn 0.45s ease both;
+        }
+
+        .step-item.done {
+            border-left-color: var(--green);
+        }
+
+        .step-chip {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--blue-700);
+            background: var(--blue-50);
+            border: 1px solid var(--blue-200);
+            border-radius: 6px;
+            padding: 0.2rem 0.45rem;
+            white-space: nowrap;
+        }
+
+        .step-item.done .step-chip {
+            color: var(--green);
+            background: var(--green-soft);
+            border-color: #bbf7d0;
+        }
+
+        @keyframes stepIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: none; }
+        }
+
+        /* ---------- buttons ---------- */
+        .btn {
+            background: var(--blue-600);
+            color: #fff;
+            border: 1px solid var(--blue-600);
+            padding: 0.62rem 1.25rem;
+            border-radius: 10px;
+            font-family: var(--font-display);
+            font-weight: 600;
+            font-size: 0.92rem;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 22px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn:active { transform: translateY(0); }
+
+        .btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn.ghost {
+            background: var(--white);
+            color: var(--blue-700);
+            border: 1px solid var(--blue-200);
+            box-shadow: none;
+        }
+
+        .btn.ghost:hover {
+            background: var(--blue-50);
+            box-shadow: 0 6px 16px rgba(11, 42, 91, 0.08);
+        }
+
+        /* ---------- conclusion ---------- */
+        .closing {
+            text-align: center;
+            align-items: center;
+            display: flex;
+            flex-direction: column;
+            gap: 1.1rem;
+        }
+
+        .closing .subtitle {
+            max-width: 720px;
+            font-size: 1.15rem;
+            color: var(--ink);
+        }
+
+        .closing .subtitle strong.s { color: var(--red); }
+        .closing .subtitle strong.t { color: var(--blue-700); }
+
+        .rule {
+            width: 120px;
+            height: 3px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--blue-700), var(--red));
+            margin: 0.6rem 0 0.2rem;
+        }
+
+        .thanks {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: clamp(2.2rem, 8vw, 5rem);
+            letter-spacing: 0.12em;
+            line-height: 1;
+            background: linear-gradient(90deg, var(--blue-700) 0%, var(--blue-900) 30%, var(--red) 55%, var(--blue-700) 100%);
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: var(--blue-700);
+            -webkit-text-fill-color: transparent;
+            animation: shade 8s linear infinite, rise 0.8s ease both;
+        }
+
+        @keyframes shade {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(16px); letter-spacing: 0.3em; }
+            to { opacity: 1; transform: none; letter-spacing: 0.12em; }
+        }
+
+        /* ---------- navbar ---------- */
+        .navbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.6rem 1rem;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-top: 1px solid var(--line);
+            box-shadow: 0 -6px 24px rgba(11, 42, 91, 0.08);
+        }
+
+        .nav-side {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 0 0 auto;
+        }
+
+        .nav-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            font-family: var(--font-display);
+            font-size: 0.88rem;
+            font-weight: 600;
+            padding: 0.5rem 0.95rem;
+            border-radius: 10px;
+            cursor: pointer;
+            border: 1px solid var(--blue-200);
+            background: var(--white);
+            color: var(--blue-700);
+            transition: all 0.18s ease;
+        }
+
+        .nav-btn.primary {
+            background: var(--blue-600);
+            border-color: var(--blue-600);
+            color: #fff;
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .nav-center {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .nav-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-meta .label {
+            color: var(--blue-700);
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-dots {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            max-width: 100%;
+            overflow-x: auto;
+            padding-bottom: 2px;
+            scrollbar-width: none;
+        }
+
+        .nav-dots::-webkit-scrollbar { display: none; }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            border: 1.5px solid var(--blue-300);
+            background: var(--white);
+            padding: 0;
+            cursor: pointer;
+            flex: 0 0 auto;
+            transition: all 0.25s ease;
+        }
+
+        .dot:hover {
+            background: var(--blue-200);
+            transform: scale(1.35);
+        }
+
+        .dot.active {
+            width: 24px;
+            background: var(--blue-600);
+            border-color: var(--blue-600);
+        }
+
+                /* ---------- SLIDE 3 & SLIDE 4 COMPACT PRESENTATION STYLES ---------- */
+        /* Slide 3 Compact 2-Column Grid */
+        .s3-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.15fr;
+            gap: 1.1rem;
+            align-items: stretch;
+            margin-top: 0.2rem;
+        }
+
+        .s3-card {
+            background: var(--white);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 1rem 1.15rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .s3-card-tag {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--blue-700);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.6rem;
+        }
+
+        /* Formula display */
+        .s3-formula-title {
+            font-family: var(--font-mono);
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--blue-900);
+            line-height: 1.4;
+        }
+
+        .s3-vars-row {
+            display: flex;
+            gap: 0.6rem;
+            margin: 0.5rem 0;
+            flex-wrap: wrap;
+        }
+
+        .s3-eval-preview {
+            font-family: var(--font-mono);
+            font-size: 0.92rem;
+            color: var(--blue-800);
+            background: var(--blue-50);
+            border: 1px solid var(--blue-100);
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            line-height: 1.45;
+        }
+
+        /* Compact Result Confirmation */
+        .s3-result-compact {
+            margin-top: 0.75rem;
+            background: var(--blue-50);
+            border: 1px solid var(--blue-200);
+            border-left: 3px solid var(--blue-600);
+            border-radius: 10px;
+            padding: 0.65rem 0.9rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            transition: all 0.3s ease;
+        }
+
+        .s3-result-compact.revealed {
+            border-left-color: var(--green);
+            background: var(--green-soft);
+        }
+
+        .s3-result-tag {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--blue-700);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .s3-result-compact.revealed .s3-result-tag {
+            color: var(--green);
+        }
+
+        .s3-result-compact-val {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--blue-900);
+            line-height: 1.2;
+            transition: all 0.3s ease;
+        }
+
+        .s3-result-compact.revealed .s3-result-compact-val {
+            color: var(--green);
+        }
+
+        .s3-result-compact-sub {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        /* Stack Visualizer */
+        .s3-tokens-track {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: var(--blue-50);
+            border: 1px solid var(--blue-200);
+            border-radius: 8px;
+            padding: 0.35rem 0.6rem;
+            margin-bottom: 0.65rem;
+            flex-wrap: wrap;
+        }
+
+        .s3-track-label {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--muted);
+            margin-right: 0.15rem;
+        }
+
+        .s3-token {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 28px;
+            padding: 0 0.4rem;
+            border-radius: 6px;
+            background: var(--white);
+            border: 2px solid var(--blue-600);
+            color: var(--blue-800);
+            font-family: var(--font-mono);
+            font-size: 0.86rem;
+            font-weight: 700;
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .s3-token.active {
+            background: var(--blue-600);
+            color: var(--white);
+            transform: scale(1.08);
+            box-shadow: 0 3px 8px rgba(37, 99, 235, 0.3);
+        }
+
+        .s3-token.consumed {
+            opacity: 0.25;
+            border-style: dashed;
+            transform: scale(0.9);
+        }
+
+        .s3-tok-op {
+            border-color: var(--blue-700);
+            color: var(--blue-700);
+            background: var(--blue-100);
+        }
+
+        .s3-stack-frame {
+            border: 2px solid var(--blue-700);
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+            background: linear-gradient(180deg, rgba(239, 246, 255, 0.35) 0%, rgba(219, 234, 254, 0.5) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 0.4rem;
+            gap: 0.35rem;
+            min-height: 96px;
+            position: relative;
+        }
+
+        .s3-stack-top-open {
+            position: absolute;
+            top: -16px;
+            right: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.64rem;
+            color: var(--blue-500);
+            letter-spacing: 0.08em;
+        }
+
+        .s3-stack-slot {
+            height: 32px;
+            border: 1px dashed var(--blue-300);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.75);
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--blue-800);
+            transition: all 0.35s ease;
+        }
+
+        .s3-stack-slot.filled {
+            border: 2px solid var(--blue-600);
+            background: var(--white);
+            box-shadow: 0 2px 6px rgba(11, 42, 91, 0.06);
+            transform: scale(1.01);
+            animation: slotIn 0.3s ease;
+        }
+
+        .s3-stack-slot.popping {
+            border-color: var(--red);
+            background: var(--red-soft);
+            color: var(--red);
+            transform: translateY(-6px);
+            opacity: 0.8;
+        }
+
+        .s3-stack-slot.result-token {
+            border: 2px solid var(--green);
+            background: var(--green-soft);
+            color: var(--green);
+            box-shadow: 0 3px 8px rgba(21, 128, 61, 0.2);
+            animation: pulseResult 0.45s ease;
+        }
+
+        .s3-slot-hint {
+            font-size: 0.65rem;
+            color: var(--blue-300);
+            font-weight: 400;
+        }
+
+        .s3-step-status {
+            font-size: 0.82rem;
+            color: var(--muted);
+            min-height: 1.8rem;
+            display: flex;
+            align-items: center;
+            margin-top: 0.45rem;
+            line-height: 1.35;
+        }
+
+        .s3-controls {
+            display: flex;
+            gap: 0.45rem;
+            margin-top: 0.35rem;
+        }
+
+        /* Clean Bottom Explanatory Strip */
+        .s3-callout-clean {
+            background: var(--blue-50);
+            border: 1px solid var(--blue-200);
+            border-left: 4px solid var(--blue-600);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            margin-top: 0.6rem;
+        }
+
+        .s3-callout-clean strong {
+            display: block;
+            color: var(--blue-900);
+            font-size: 0.96rem;
+            margin-bottom: 0.15rem;
+        }
+
+        .s3-callout-clean p {
+            color: var(--muted);
+            font-size: 0.88rem;
+            line-height: 1.4;
+        }
+
+        /* ---------- SLIDE 4 COMPACT STYLES ---------- */
+        .s4-tabs {
+            display: flex;
+            gap: 0.35rem;
+            overflow-x: auto;
+            padding: 0.15rem;
+        }
+
+        .s4-tab {
+            font-family: var(--font-display);
+            font-size: 0.78rem;
+            font-weight: 600;
+            padding: 0.32rem 0.75rem;
+            border-radius: 6px;
+            background: var(--white);
+            border: 1px solid var(--line);
+            color: var(--muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .s4-tab:hover {
+            color: var(--blue-700);
+            border-color: var(--blue-200);
+        }
+
+        .s4-tab.active {
+            background: var(--blue-700);
+            color: var(--white);
+            border-color: var(--blue-700);
+            box-shadow: 0 3px 8px rgba(29, 78, 216, 0.2);
+        }
+
+        .s4-stage-box {
+            background: var(--white);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 1.15rem 1.35rem;
+            box-shadow: var(--shadow-sm);
+            min-height: 295px;
+            position: relative;
+        }
+
+        .s4-pane {
+            display: none;
+            flex-direction: column;
+            gap: 0.85rem;
+            animation: fadeInS4 0.3s ease;
+        }
+
+        .s4-pane.active {
+            display: flex;
+        }
+
+        @keyframes fadeInS4 {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: none; }
+        }
+
+        /* S4 Ex 1 */
+        .s4-ex1-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 0.75fr 1.15fr;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .s4-expr-hero {
+            background: var(--blue-50);
+            border: 1px solid var(--blue-200);
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .s4-expr-title {
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--blue-900);
+        }
+
+        .s4-expr-vars {
+            font-family: var(--font-mono);
+            font-size: 0.88rem;
+            color: var(--blue-700);
+            line-height: 1.45;
+        }
+
+        .s4-stack-mini {
+            border: 2px solid var(--blue-600);
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            background: rgba(239, 246, 255, 0.45);
+            padding: 0.4rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            min-height: 95px;
+            justify-content: flex-end;
+        }
+
+        .s4-stack-cell {
+            height: 28px;
+            border: 1px dashed var(--blue-300);
+            border-radius: 5px;
+            background: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.88rem;
+            color: var(--blue-800);
+            transition: all 0.3s ease;
+        }
+
+        .s4-stack-cell.filled {
+            border: 2px solid var(--blue-600);
+            background: var(--blue-50);
+        }
+
+        .s4-stack-cell.stalled {
+            border: 2px solid var(--red);
+            background: var(--red-soft);
+            color: var(--red);
+        }
+
+        .s4-ex1-result {
+            background: var(--white);
+            border: 1px solid var(--line);
+            border-left: 3px solid var(--blue-600);
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        .s4-ex1-result.stalled {
+            border-left-color: var(--red);
+        }
+
+        /* S4 Ex 2 */
+        .s4-ex2-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .s4-step-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            background: var(--blue-50);
+            border: 1px solid var(--blue-200);
+            border-radius: 10px;
+            padding: 0.9rem 1.1rem;
+        }
+
+        .s4-flow-card {
+            background: var(--white);
+            border: 1px solid var(--blue-200);
+            border-radius: 10px;
+            padding: 0.6rem 1.1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.2rem;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+        }
+
+        .s4-flow-card.active {
+            border-color: var(--blue-600);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.18);
+            transform: translateY(-2px);
+        }
+
+        .s4-flow-card.success {
+            border-color: var(--green);
+            background: var(--green-soft);
+        }
+
+        .s4-flow-arrow {
+            font-size: 1.15rem;
+            color: var(--blue-400);
+            font-weight: 700;
+        }
+
+        /* S4 Ex 3 */
+        .s4-ex3-expr-box {
+            background: var(--code-bg);
+            border: 1px solid var(--blue-900);
+            border-radius: 10px;
+            padding: 0.85rem 1.25rem;
+            font-family: var(--font-mono);
+            font-size: 1.15rem;
+            color: var(--code-fg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .s4-hl-branch1 {
+            background: rgba(220, 38, 38, 0.2);
+            border: 1px solid var(--red);
+            color: #fca5a5;
+            padding: 0.15rem 0.5rem;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .s4-hl-branch2 {
+            background: rgba(37, 99, 235, 0.25);
+            border: 1px solid var(--blue-400);
+            color: #93c5fd;
+            padding: 0.15rem 0.5rem;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .s4-ex3-reductions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.85rem;
+        }
+
+        /* S4 Comparison */
+        .s4-compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .s4-compare-col {
+            background: var(--white);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 0.95rem 1.15rem;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .s4-compare-col.stack-col {
+            border-top: 3px solid var(--blue-500);
+        }
+
+        .s4-compare-col.expr-col {
+            border-top: 3px solid var(--blue-700);
+            background: linear-gradient(180deg, var(--blue-50) 0%, var(--white) 100%);
+        }
+
+        .s4-compare-title {
+            font-family: var(--font-mono);
+            font-size: 0.98rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .s4-flow-pipeline {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.35rem 0;
+        }
+
+        .s4-pipeline-step {
+            width: 100%;
+            background: var(--white);
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            padding: 0.42rem 0.7rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: var(--blue-900);
+        }
+
+        .s4-pipeline-arrow {
+            font-size: 0.88rem;
+            color: var(--blue-400);
+            font-weight: 700;
+        }
+
+        /* Leading Question Box */
+        .s4-leading-question {
+            background: linear-gradient(135deg, var(--blue-900) 0%, var(--blue-800) 100%);
+            border: 2px solid var(--blue-600);
+            border-radius: 12px;
+            padding: 0.85rem 1.25rem;
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.2rem;
+            box-shadow: var(--shadow-md);
+            margin-top: 0.4rem;
+        }
+
+        .s4-leading-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: var(--white);
+        }
+
+        .s4-leading-badge {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--blue-200);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 9999px;
+            padding: 0.28rem 0.75rem;
+            white-space: nowrap;
+        }
+
+        /* Footer bar */
+        .s4-footer-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            padding-top: 0.15rem;
+        }
+
+        .s4-footer-msg {
+            font-size: 0.88rem;
+            color: var(--muted);
+            font-weight: 500;
+            max-width: 650px;
+        }
+
+        .s4-stage-nav {
+            display: flex;
+            gap: 0.45rem;
+        }
+
+        @media (max-width: 900px) {
+            .s3-grid,
+            .s4-ex1-grid,
+            .s4-compare-grid,
+            .s4-ex3-reductions { grid-template-columns: 1fr; }
+            .s4-step-flow { flex-direction: column; }
+            .s4-tabs { flex-wrap: wrap; }
+            .s4-leading-question { flex-direction: column; align-items: flex-start; }
+        }
+
+        /* ---------- responsive ---------- */
+        @media (max-width: 900px) {
+            .cols,
+            .sim { grid-template-columns: 1fr; }
+            .screen { padding: 2.2rem 1.1rem 6rem; }
+            .nav-meta { font-size: 0.66rem; letter-spacing: 0.08em; }
+            .nav-btn { padding: 0.5rem 0.7rem; font-size: 0.82rem; }
+            .ascii, .sim-tree { font-size: 0.8rem; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.001s !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.001s !important;
+            }
+            html { scroll-behavior: auto; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="progress-bar" id="progressBar"></div>
+
+    <main>
+
+        <!-- 1 : TITLE -->
+        <section class="screen" id="slide-1" data-section="Overview">
+            <div class="wrap cols">
+                <div style="display:flex;flex-direction:column;gap:1.1rem;">
+                    <span class="badge">Data Structures</span>
+                    <h1>Expression <span class="grad">Trees</span></h1>
+                    <div class="hero-hint">👇 Scroll or press Down Arrow to pull the next slide</div>
+                </div>
+
+                <div class="ds-visual">
+                    <svg viewBox="0 0 420 250" role="img" aria-label="Expression tree diagram">
+                        <g>
+                            <line class="edge" x1="210" y1="36" x2="120" y2="124"></line>
+                            <line class="edge" x1="210" y1="36" x2="300" y2="124"></line>
+                            <line class="edge" x1="120" y1="124" x2="66" y2="212"></line>
+                            <line class="edge" x1="120" y1="124" x2="174" y2="212"></line>
+                            <line class="edge" x1="300" y1="124" x2="246" y2="212"></line>
+                            <line class="edge" x1="300" y1="124" x2="354" y2="212"></line>
+                        </g>
+                        <g class="node n1"><circle cx="210" cy="36" r="26"></circle><text x="210" y="43">+</text></g>
+                        <g class="node n2"><circle cx="120" cy="124" r="24"></circle><text x="120" y="131">*</text></g>
+                        <g class="node n3"><circle cx="300" cy="124" r="24"></circle><text x="300" y="131">/</text></g>
+                        <g class="node n4"><circle cx="66" cy="212" r="22"></circle><text x="66" y="219">x</text></g>
+                        <g class="node n5"><circle cx="174" cy="212" r="22"></circle><text x="174" y="219">0</text></g>
+                        <g class="node n6"><circle cx="246" cy="212" r="22"></circle><text x="246" y="219">8</text></g>
+                        <g class="node n7"><circle cx="354" cy="212" r="22"></circle><text x="354" y="219">2</text></g>
+                    </svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2 : KEY INQUIRIES (LIST) -->
+        <section class="screen tint" id="slide-2" data-section="Key Inquiries">
+            <div class="wrap">
+                <span class="badge">Key Inquiries</span>
+                <h2>What You Will Be Able to Answer After Today</h2>
+                <ol class="q-list">
+                    <li><span class="q-num">01</span><span class="q-text">What is an Expression Tree?</span></li>
+                    <li><span class="q-num">02</span><span class="q-text">Why do we need it?</span></li>
+                    <li><span class="q-num">03</span><span class="q-text">What is the gap that stacks are unable to fill but trees can?</span></li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- 3 : WHEN A STACK IS ENOUGH -->
+        <section class="screen" id="slide-3" data-section="When Stack Is Enough">
+            <div class="wrap">
+                <span class="badge">Stack Evaluation</span>
+                <h2>When a Stack Is Enough</h2>
+                <p class="subtitle">Known values → calculate → result</p>
+
+                <!-- Compact 2-Column Evaluation Layout -->
+                <div class="s3-grid">
+                    <!-- Left: Expression Info & Compact Result -->
+                    <div style="display:flex; flex-direction:column; gap:0.65rem;">
+                        <div class="s3-card">
+                            <div class="s3-card-tag">FORMULA &amp; VALUES</div>
+                            <div class="s3-formula-title">Perimeter = 2 × (length + width)</div>
+                            <div class="s3-vars-row">
+                                <code>length = 20</code>
+                                <code>width = 15</code>
+                            </div>
+                            <div class="s3-eval-preview">
+                                Perimeter = 2 × (20 + 15)<br>
+                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= <strong>70</strong>
+                            </div>
+                        </div>
+
+                        <!-- Compact Result Confirmation Box -->
+                        <div class="s3-result-compact" id="s3ResultCard">
+                            <div class="s3-result-tag">RESULT CONFIRMATION</div>
+                            <div class="s3-result-compact-val" id="s3ResultVal">Perimeter = ...</div>
+                            <div class="s3-result-compact-sub" id="s3ResultSub">Awaiting stack calculation</div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Evaluation Stack -->
+                    <div class="s3-card">
+                        <div class="s3-card-tag">EVALUATION STACK (LIFO)</div>
+                        <div class="s3-tokens-track">
+                            <span class="s3-track-label">Input:</span>
+                            <span class="s3-token" id="s3Tok20">20</span>
+                            <span class="s3-token" id="s3Tok15">15</span>
+                            <span class="s3-token s3-tok-op" id="s3TokAdd">+</span>
+                            <span class="s3-token" id="s3Tok2">2</span>
+                            <span class="s3-token s3-tok-op" id="s3TokMul">×</span>
+                        </div>
+                        <div class="s3-stack-frame">
+                            <div class="s3-stack-top-open">TOP OF STACK</div>
+                            <div class="s3-stack-slot" id="s3Slot1"><span class="s3-slot-hint">slot 1</span></div>
+                            <div class="s3-stack-slot" id="s3Slot0"><span class="s3-slot-hint">slot 0 (bottom)</span></div>
+                        </div>
+                        <div class="s3-step-status" id="s3StatusText">Ready. Click <strong>Calculate</strong> to evaluate.</div>
+                        <div class="s3-controls">
+                            <button class="btn" id="s3CalcBtn" onclick="runSlide3Step()">Calculate ▶</button>
+                            <button class="btn ghost" id="s3ResetBtn" onclick="resetSlide3()" style="display:none;">Reset ↺</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Clean Bottom Explanatory Text (No Transition Card) -->
+                <div class="s3-callout-clean">
+                    <strong>This is where a stack works perfectly.</strong>
+                    <p>The values are known, so we can directly calculate the result.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4 : WHEN EVALUATION ISN'T ENOUGH -->
+        <section class="screen tint" id="slide-4" data-section="When Evaluation Isn't Enough">
+            <div class="wrap">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:0.6rem;">
+                    <div>
+                        <span class="badge">Symbolic Limits</span>
+                        <h2>When Evaluation Isn't Enough</h2>
+                        <p class="subtitle">What if the values are not known yet?</p>
+                    </div>
+                    <!-- Compact Switcher Tabs -->
+                    <div class="s4-tabs" id="s4Tabs" style="display:none;">
+                        <button class="s4-tab active" onclick="setSlide4Tab(0)"></button>
+                        <button class="s4-tab" onclick="setSlide4Tab(1)"></button>
+                        <button class="s4-tab" onclick="setSlide4Tab(2)"></button>
+                    </div>
+                </div>
+
+                <!-- Stage Box -->
+                <div class="s4-stage-box">
+                    <!-- PANE 0: EXAMPLE 1 - UNKNOWN VALUES -->
+                    <div class="s4-pane active" id="s4Pane0">
+                        <div style="font-size:0.78rem; font-family:var(--font-mono); color:var(--blue-700); font-weight:700;">
+                            EXAMPLE 1 — UNKNOWN VALUES
+                        </div>
+                        <div class="s4-ex1-grid">
+                            <!-- Left: Formula & Tokens -->
+                            <div class="s4-expr-hero">
+                                <div class="s4-expr-title">Perimeter = 2 × (length + width)</div>
+                                <div class="s4-expr-vars">
+                                    length = <code>x</code><br>
+                                    width = <code>y</code>
+                                </div>
+                                <div class="s3-tokens-track" style="margin-top:0.35rem; margin-bottom:0.55rem;">
+                                    <span class="s3-track-label">Tokens:</span>
+                                    <span class="s3-token" id="s4Ex1TokX">x</span>
+                                    <span class="s3-token" id="s4Ex1TokY">y</span>
+                                    <span class="s3-token s3-tok-op" id="s4Ex1TokAdd">+</span>
+                                    <span class="s3-token s3-tok-op" id="s4Ex1TokMul2">× 2</span>
+                                </div>
+                                <div>
+                                    <button class="btn" id="s4Ex1Btn" onclick="runS4Ex1()" style="padding:0.45rem 1rem; font-size:0.84rem;">Try Evaluation ▶</button>
+                                    <button class="btn ghost" id="s4Ex1ResetBtn" onclick="resetS4Ex1()" style="display:none; padding:0.45rem 0.85rem; font-size:0.84rem;">Reset ↺</button>
+                                </div>
+                            </div>
+
+                            <!-- Center: Stack Attempt -->
+                            <div style="display:flex; flex-direction:column; align-items:center;">
+                                <div style="font-family:var(--font-mono); font-size:0.7rem; color:var(--muted); margin-bottom:0.25rem;">STACK STATE</div>
+                                <div class="s4-stack-mini" style="width:125px;">
+                                    <div class="s4-stack-cell" id="s4Ex1Slot1"><span class="s3-slot-hint">slot 1</span></div>
+                                    <div class="s4-stack-cell" id="s4Ex1Slot0"><span class="s3-slot-hint">slot 0</span></div>
+                                </div>
+                                <div id="s4Ex1StackNote" style="font-size:0.76rem; color:var(--muted); margin-top:0.3rem; text-align:center;">Empty stack</div>
+                            </div>
+
+                            <!-- Right: The Observation -->
+                            <div class="s4-ex1-result" id="s4Ex1ResultBox">
+                                <div id="s4Ex1Header" style="font-weight:700; color:var(--muted); font-size:0.95rem;">
+                                    Click "Try Evaluation" to push tokens
+                                </div>
+                                <div id="s4Ex1ExprDisplay" style="font-family:var(--font-mono); font-size:1.05rem; color:var(--blue-700); font-weight:700; display:none;">
+                                    2 × (x + y)
+                                </div>
+                                <p id="s4Ex1Msg" style="font-size:0.85rem; color:var(--muted); line-height:1.45;">
+                                    A stack normally pops numbers and performs arithmetic. Watch what happens when values are unknown variables.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PANE 1: EXAMPLE 2 - SIMPLIFY WITHOUT KNOWING VALUES -->
+                    <div class="s4-pane" id="s4Pane1">
+                        <div style="font-size:0.78rem; font-family:var(--font-mono); color:var(--blue-700); font-weight:700;">
+                            EXAMPLE 2 — WE CAN SIMPLIFY WITHOUT KNOWING THE VALUE
+                        </div>
+                        <div class="s4-ex2-container">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.6rem;">
+                                <div>
+                                    <span style="font-size:0.88rem; color:var(--muted);">Useful Expression:</span>
+                                    <div style="font-family:var(--font-mono); font-size:1.35rem; font-weight:700; color:var(--blue-900);">
+                                        Cost = (x × 0) + 100
+                                    </div>
+                                </div>
+                                <div>
+                                    <button class="btn" id="s4Ex2Btn" onclick="runS4Ex2()" style="padding:0.45rem 1rem; font-size:0.84rem;">Simplify ▶</button>
+                                    <button class="btn ghost" id="s4Ex2ResetBtn" onclick="resetS4Ex2()" style="display:none; padding:0.45rem 0.85rem; font-size:0.84rem;">Reset ↺</button>
+                                </div>
+                            </div>
+
+                            <!-- Step-by-Step Animated Flow -->
+                            <div class="s4-step-flow">
+                                <div class="s4-flow-card" id="s4FlowCard1">
+                                    <span style="font-family:var(--font-mono); font-size:0.7rem; color:var(--muted);">SUB-EXPRESSION</span>
+                                    <strong style="font-family:var(--font-mono); font-size:1.1rem; color:var(--blue-800);">x × 0</strong>
+                                    <span class="s4-flow-arrow">↓</span>
+                                    <strong id="s4FlowVal1" style="font-family:var(--font-mono); font-size:1.15rem; color:var(--muted);">?</strong>
+                                </div>
+
+                                <div class="s4-flow-arrow">+</div>
+
+                                <div class="s4-flow-card" id="s4FlowCard2">
+                                    <span style="font-family:var(--font-mono); font-size:0.7rem; color:var(--muted);">CONSTANT</span>
+                                    <strong style="font-family:var(--font-mono); font-size:1.1rem; color:var(--blue-800);">100</strong>
+                                    <span class="s4-flow-arrow">↓</span>
+                                    <strong style="font-family:var(--font-mono); font-size:1.15rem; color:var(--blue-700);">100</strong>
+                                </div>
+
+                                <div class="s4-flow-arrow">=</div>
+
+                                <div class="s4-flow-card" id="s4FlowCard3">
+                                    <span style="font-family:var(--font-mono); font-size:0.7rem; color:var(--muted);">FINAL RESULT</span>
+                                    <strong id="s4FlowFinal" style="font-family:var(--font-mono); font-size:1.15rem; color:var(--muted);">Cost = ...</strong>
+                                </div>
+                            </div>
+
+                            <!-- Takeaway -->
+                            <div class="s4-ex1-result" id="s4Ex2Callout" style="border-left-color:var(--blue-600); padding:0.75rem 1rem;">
+                                <strong style="font-size:1rem; color:var(--blue-900);">
+                                    We never needed to know <code>x</code>.
+                                </strong>
+                                <p style="font-size:0.86rem; color:var(--muted); margin-top:0.2rem;">
+                                    This is the important observation: algebraic reasoning transforms the structure before runtime.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PANE 3: FINAL VISUAL COMPARISON -->
+                    <div class="s4-pane" id="s4Pane2">
+                        <div class="s4-compare-grid">
+                            <!-- Left: STACK -->
+                            <div class="s4-compare-col stack-col">
+                                <div class="s4-compare-title" style="color:var(--blue-600);">
+                                    <span>STACK</span>
+                                </div>
+                                <div class="s4-flow-pipeline">
+                                    <div class="s4-pipeline-step">Values available</div>
+                                    <span class="s4-pipeline-arrow">↓</span>
+                                    <div class="s4-pipeline-step">Calculate</div>
+                                    <span class="s4-pipeline-arrow">↓</span>
+                                    <div class="s4-pipeline-step" style="background:var(--blue-50); border-color:var(--blue-300); color:var(--blue-800); font-weight:700;">Result</div>
+                                </div>
+                                <div style="font-size:0.85rem; color:var(--muted); text-align:center; padding-top:0.35rem; border-top:1px dashed var(--line);">
+                                    <strong style="color:var(--ink);">A stack is great for calculation.</strong>
+                                </div>
+                            </div>
+
+                            <!-- Right: EXPRESSION -->
+                            <div class="s4-compare-col expr-col">
+                                <div class="s4-compare-title" style="color:var(--blue-900);">
+                                    <span>EXPRESSION</span>
+                                </div>
+                                <div class="s4-flow-pipeline">
+                                    <div class="s4-pipeline-step">Values may be unknown</div>
+                                    <span class="s4-pipeline-arrow">↓</span>
+                                    <div class="s4-pipeline-step">Understand structure</div>
+                                    <span class="s4-pipeline-arrow">↓</span>
+                                    <div class="s4-pipeline-step" style="background:var(--blue-100); border-color:var(--blue-600); color:var(--blue-900); font-weight:700;">Simplify / reason</div>
+                                </div>
+                                <div style="font-size:0.85rem; color:var(--muted); text-align:center; padding-top:0.35rem; border-top:1px dashed var(--line);">
+                                    <strong style="color:var(--blue-800);">But calculation alone isn't enough for symbolic expressions.</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Leading Question (Bridge to Slide 5) -->
+                        <div class="s4-leading-question">
+                            <div>
+                                <div style="font-family:var(--font-mono); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--blue-200); margin-bottom:0.15rem;">
+                                    THE CORE QUESTION
+                                </div>
+                                <div class="s4-leading-text">
+                                    So how do we preserve the structure of an expression?
+                                </div>
+                            </div>
+                            <span class="s4-leading-badge">Next: Trees &amp; AST →</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Bar -->
+                <div class="s4-footer-bar">
+                    <div class="s4-footer-msg" id="s4FooterMsg">
+                        The bigger the expression becomes, the more we need to reason about its structure — not just calculate values.
+                    </div>
+                    <div class="s4-stage-nav">
+                        <button class="btn ghost" id="s4PrevTabBtn" onclick="prevSlide4Tab()" disabled style="padding:0.42rem 0.85rem; font-size:0.82rem;">← Previous</button>
+                        <button class="btn" id="s4NextTabBtn" onclick="nextSlide4Tab()" style="padding:0.42rem 0.85rem; font-size:0.82rem;">Next: Simplification →</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4A : EXPRESSION TREE DEFINITION -->
+        <section class="screen" id="slide-4a" data-section="Expression Tree">
+            <div class="wrap">
+                <span class="badge">Expression Tree</span>
+                <h2>What is an Expression Tree?</h2>
+                <p class="subtitle">An expression tree is a tree data structure used to represent an expression, where leaves are operands and internal nodes are operators.</p>
+                <div class="cols cols-top" style="gap:1.25rem; margin-top:0.5rem;">
+                    <div class="card">
+                        <div class="card-title">Leaves &#8594; Operands</div>
+                        <div class="card-desc">Leaves represent operands such as values or variables (e.g., <code>x</code>, <code>y</code>, <code>2</code>).</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Internal Nodes &#8594; Operators</div>
+                        <div class="card-desc">Internal nodes represent operators that act on their child subexpressions (e.g., <code>+</code>, <code>&times;</code>, <code>-</code>, <code>&divide;</code>).</div>
+                    </div>
+                </div>
+
+                <div class="cols cols-top" style="margin-top:1rem; gap:1.5rem; align-items: stretch;">
+                    <div class="sim-tree" style="background:#0b1020; color:#4dd2ff; padding:1.5rem; border-radius:10px; font-family:var(--font-mono); white-space:pre; text-align:center; min-height: 250px; display: flex; align-items: center; justify-content: center;">    +
+   / \
+  x   *
+     / \
+    y   2</div>
+
+                    <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                        <p style="font-size:0.95rem;">This represents: <code>x + (y &times; 2)</code></p>
+                        <div style="background:#f8fbff; border:1px solid var(--line); border-radius:10px; padding:0.9rem 1rem; font-size:0.9rem;">
+                            <strong>One Structure, Three Output Forms</strong>
+                        </div>  
+                        <div class="table-wrap">
+                            <table class="table" style="width:100%; border-collapse: collapse; font-size:0.9rem;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--line); text-align: left;">
+                                        <th style="padding: 0.5rem;">Traversal</th>
+                                        <th style="padding: 0.5rem;">Output</th>
+                                        <th style="padding: 0.5rem;">Example</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="border-bottom: 1px solid var(--line);">
+                                        <td style="padding: 0.5rem;"><strong>Inorder</strong></td>
+                                        <td style="padding: 0.5rem;">Infix (human-readable)</td>
+                                        <td style="padding: 0.5rem;"><code>x + (y &times; 2)</code></td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid var(--line);">
+                                        <td style="padding: 0.5rem;"><strong>Preorder</strong></td>
+                                        <td style="padding: 0.5rem;">Prefix</td>
+                                        <td style="padding: 0.5rem;"><code>+ x &times; y 2</code></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 0.5rem;"><strong>Postorder</strong></td>
+                                        <td style="padding: 0.5rem;">Postfix (computation-ready)</td>
+                                        <td style="padding: 0.5rem;"><code>x y 2 &times; +</code></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5 : TREE PRUNING STEPPER -->
+        <section class="screen" id="slide-5" data-section="Optimization Demo">
+            <div class="wrap">
+                <span class="badge">Step-by-Step Optimization</span>
+                <h2>Tree Pruning &amp; Algebraic Optimization</h2>
+                <p class="subtitle">How a compiler simplifies <code>((x * 0) + (y * 1)) + (8 / 2)</code> into simpler code step by step:</p>
+
+                <div class="sim">
+                    <div class="sim-stage">
+                        <div class="sim-tree" id="treeStepDisplay">       +
+     /   \
+    +     /
+   / \   / \
+  *   * 8   2
+ / \ / \
+x  0 y  1</div>
+                        <div class="sim-controls">
+                            <button class="btn ghost" id="prevStepBtn" onclick="prevTreeStep()">Previous Step</button>
+                            <button class="btn" id="nextStepBtn" onclick="nextTreeStep()">Next Step</button>
+                        </div>
+                    </div>
+
+                    <div class="sim-side" id="stepExplanation">
+                        <div class="step-item">
+                            <span class="step-chip">Step 1</span>
+                            <span>Step 1: Original full expression tree built from code.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 9A : ADVANTAGES 1 -->
+        <section class="screen" id="slide-9a" data-section="Advantages">
+            <div class="wrap">
+                <span class="badge">Strengths</span>
+                <h2>Why Use Expression Trees? (Advantages)</h2>
+                <p class="subtitle">Four major reasons compilers and database engines rely on trees instead of simple arrays or stacks.</p>
+                <div class="cols cols-top">
+                    <div class="card accent-green">
+                        <div class="card-title">1. No Parentheses Needed</div>
+                        <div class="card-desc">The parent-child tree shape automatically decides operator precedence (like doing multiplication before addition) without needing extra brackets or messy parsing rules.</div>
+                    </div>
+                    <div class="card accent-green">
+                        <div class="card-title">2. Safe Pre-Calculation</div>
+                        <div class="card-desc">Compilers can safely rewrite messy code, fold constant math like <code>60 * 60</code>, and remove dead statements <em>before</em> generating final executable code.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 9B : ADVANTAGES 2 -->
+        <section class="screen tint" id="slide-9b" data-section="Advantages">
+            <div class="wrap">
+                <span class="badge">Strengths</span>
+                <div class="cols cols-top">
+                    <div class="card accent-green">
+                        <div class="card-title">3. Easy Output Conversion</div>
+                        <div class="card-desc">Walking the tree in different orders produces whatever format you need: In-order gives human-readable code, and Post-order gives assembly/bytecode instructions.</div>
+                    </div>
+                    <div class="card accent-green">
+                        <div class="card-title">4. Works with Unknown Variables</div>
+                        <div class="card-desc">Unlike stacks that fail when variable values are missing, trees can easily store and optimize expressions containing dynamic variable names like <code>x</code> or <code>y</code>.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 10A : DISADVANTAGES 1 -->
+        <section class="screen" id="slide-10a" data-section="Disadvantages">
+            <div class="wrap">
+                <span class="badge">Trade-offs</span>
+                <h2>Where Trees Fall Short (Disadvantages)</h2>
+                <p class="subtitle">The extra overhead and performance penalties you pay when using tree data structures.</p>
+                <div class="cols cols-top">
+                    <div class="card accent-red">
+                        <div class="card-title">1. Heavy Memory Consumption</div>
+                        <div class="card-desc">Every single symbol requires its own heap node containing left/right memory pointers, using significantly more memory than a continuous array.</div>
+                    </div>
+                    <div class="card accent-red">
+                        <div class="card-title">2. Extra Setup Overhead</div>
+                        <div class="card-desc">Before you can use a tree, source code must first be broken into tokens and parsed into nodes&mdash;adding build-time delay before work can begin.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 10B : DISADVANTAGES 2 -->
+        <section class="screen tint" id="slide-10b" data-section="Disadvantages">
+            <div class="wrap">
+                <span class="badge">Trade-offs</span>
+                <div class="cols cols-top">
+                    <div class="card accent-red">
+                        <div class="card-title">3. Slower CPU Cache Access</div>
+                        <div class="card-desc">Tree nodes are scattered randomly across memory. Jumping around memory pointers is slower for CPU cache than reading linear arrays straight through.</div>
+                    </div>
+                    <div class="card accent-red">
+                        <div class="card-title">4. Too Complex for Simple Math</div>
+                        <div class="card-desc">If your numbers are already known (e.g. <code>5 + 3</code>), building a full tree is wasteful overkill compared to using a simple evaluation stack.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 11 : CLOSING -->
+        <section class="screen tint" id="slide-11" data-section="Takeaway">
+            <div class="wrap closing">
+                <span class="badge">Summary</span>
+                <p class="subtitle">
+                    Use a <strong class="s">STACK</strong> at runtime to calculate concrete numeric values quickly.<br><br>
+                    Use a <strong class="t">TREE</strong> at compile-time to inspect, optimize, and transform dynamic program logic.
+                </p>
+                <div class="rule"></div>
+                <div class="thanks">THANK YOU</div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FIXED BOTTOM NAV -->
+    <nav class="navbar">
+        <div class="nav-side">
+            <button class="nav-btn" id="prevBtn" aria-label="Previous slide">&#9664; Prev</button>
+        </div>
+        <div class="nav-center">
+            <div class="nav-meta">
+                <span class="label" id="navLabel">Overview</span>
+                <span id="navCount">1 / 12</span>
+            </div>
+            <div class="nav-dots" id="navDots"></div>
+        </div>
+        <div class="nav-side">
+            <button class="nav-btn primary" id="nextBtn" aria-label="Next slide">Next &#9654;</button>
+        </div>
+    </nav>
+
+    <script>
+        const screens = Array.from(document.querySelectorAll('.screen'));
+        const navDots = document.getElementById('navDots');
+        const navLabel = document.getElementById('navLabel');
+        const navCount = document.getElementById('navCount');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const progressBar = document.getElementById('progressBar');
+
+        let current = 0;
+
+        screens.forEach((screen, idx) => {
+            const dot = document.createElement('button');
+            dot.className = 'dot' + (idx === 0 ? ' active' : '');
+            dot.setAttribute('aria-label', 'Go to slide ' + (idx + 1));
+            dot.addEventListener('click', () => goTo(idx));
+            navDots.appendChild(dot);
+        });
+
+        const dots = Array.from(document.querySelectorAll('.dot'));
+
+        function goTo(index) {
+            const i = Math.max(0, Math.min(screens.length - 1, index));
+            screens[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function setActive(index) {
+            current = index;
+            const section = screens[index].getAttribute('data-section') || ('Section ' + (index + 1));
+            navLabel.textContent = section;
+            navCount.textContent = (index + 1) + ' / ' + screens.length;
+            prevBtn.disabled = index === 0;
+            nextBtn.disabled = index === screens.length - 1;
+
+            dots.forEach((d, i) => d.classList.toggle('active', i === index));
+            const activeDot = dots[index];
+            if (activeDot) {
+                activeDot.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            }
+        }
+
+        prevBtn.addEventListener('click', () => goTo(current - 1));
+        nextBtn.addEventListener('click', () => goTo(current + 1));
+
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('on');
+                }
+            });
+        }, { threshold: 0.25 });
+
+        const activeObserver = new IntersectionObserver((entries) => {
+            let best = null;
+            entries.forEach(entry => {
+                if (entry.isIntersecting && (!best || entry.intersectionRatio > best.intersectionRatio)) {
+                    best = entry;
+                }
+            });
+            if (best) {
+                const idx = screens.indexOf(best.target);
+                if (idx !== -1 && idx !== current) setActive(idx);
+            }
+        }, { threshold: [0.35, 0.6] });
+
+        screens.forEach(screen => {
+            revealObserver.observe(screen);
+            activeObserver.observe(screen);
+        });
+
+        window.addEventListener('scroll', () => {
+            const max = document.documentElement.scrollHeight - window.innerHeight;
+            const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
+            progressBar.style.width = pct + '%';
+        }, { passive: true });
+
+        window.addEventListener('keydown', (e) => {
+            const tag = document.activeElement ? document.activeElement.tagName : '';
+            const onButton = tag === 'BUTTON';
+
+            if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'PageDown') {
+                e.preventDefault();
+                goTo(current + 1);
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                e.preventDefault();
+                goTo(current - 1);
+            } else if (e.key === ' ' && !onButton) {
+                e.preventDefault();
+                goTo(current + 1);
+            } else if (e.key === 'Home') {
+                e.preventDefault();
+                goTo(0);
+            } else if (e.key === 'End') {
+                e.preventDefault();
+                goTo(screens.length - 1);
+            }
+        });
+
+        setActive(0);
+
+        /* ---------- slide 5 : step by step ---------- */
+        const treeSteps = [
+            {
+                tree: `       +
+     /   \\
+    +     /
+   / \\   / \\
+  *   * 8   2
+ / \\ / \\
+x  0 y  1`,
+                exp: "Step 1: Original full expression tree built from code ((x * 0) + (y * 1)) + (8 / 2)."
+            },
+            {
+                tree: `       +
+     /   \\
+    +     4  <-- (Calculated 8 / 2)
+   / \\
+  *   *
+ / \\ / \\
+x  0 y  1`,
+                exp: "Step 2: Calculate fixed numbers directly -> (8 / 2) becomes 4."
+            },
+            {
+                tree: `       +
+     /   \\
+    +     4
+   / \\
+  0   y      <-- (Simplified x * 0 = 0 and y * 1 = y)`,
+                exp: "Step 3: Apply basic math rules -> Anything times 0 is 0, and anything times 1 is itself."
+            },
+            {
+                tree: `   +
+  / \\
+ y   4       <-- Final Clean Tree: (y + 4)`,
+                exp: "Step 4: Clean up -> (0 + y) simplifies directly to 'y'. Final optimized code: (y + 4)."
+            }
+        ];
+
+        let currentTreeStep = 0;
+        const treeEl = document.getElementById('treeStepDisplay');
+        const stepList = document.getElementById('stepExplanation');
+        const prevStepBtn = document.getElementById('prevStepBtn');
+        const nextStepBtn = document.getElementById('nextStepBtn');
+
+        function renderTreeSteps() {
+            treeEl.style.opacity = '0';
+            setTimeout(() => {
+                treeEl.innerText = treeSteps[currentTreeStep].tree;
+                treeEl.style.opacity = '1';
+            }, 120);
+
+            stepList.innerHTML = '';
+            for (let i = 0; i <= currentTreeStep; i++) {
+                const item = document.createElement('div');
+                item.className = 'step-item' + (i < currentTreeStep ? ' done' : '');
+                item.style.animationDelay = (i === currentTreeStep ? '0s' : '0s');
+
+                const chip = document.createElement('span');
+                chip.className = 'step-chip';
+                chip.textContent = 'Step ' + (i + 1);
+
+                const text = document.createElement('span');
+                text.textContent = treeSteps[i].exp;
+
+                item.appendChild(chip);
+                item.appendChild(text);
+                stepList.appendChild(item);
+            }
+
+            prevStepBtn.disabled = currentTreeStep === 0;
+            nextStepBtn.disabled = currentTreeStep === treeSteps.length - 1;
+        }
+
+        function nextTreeStep() {
+            if (currentTreeStep < treeSteps.length - 1) {
+                currentTreeStep++;
+                renderTreeSteps();
+            }
+        }
+
+        function prevTreeStep() {
+            if (currentTreeStep > 0) {
+                currentTreeStep--;
+                renderTreeSteps();
+            }
+        }
+
+        renderTreeSteps();
+    
+        /* ---------- SLIDE 3 : WHEN A STACK IS ENOUGH (PERIMETER) ---------- */
+        let s3Step = 0;
+        const s3Tok20 = document.getElementById('s3Tok20');
+        const s3Tok15 = document.getElementById('s3Tok15');
+        const s3TokAdd = document.getElementById('s3TokAdd');
+        const s3Tok2 = document.getElementById('s3Tok2');
+        const s3TokMul = document.getElementById('s3TokMul');
+        const s3Slot0 = document.getElementById('s3Slot0');
+        const s3Slot1 = document.getElementById('s3Slot1');
+        const s3StatusText = document.getElementById('s3StatusText');
+        const s3CalcBtn = document.getElementById('s3CalcBtn');
+        const s3ResetBtn = document.getElementById('s3ResetBtn');
+        const s3ResultCard = document.getElementById('s3ResultCard');
+        const s3ResultVal = document.getElementById('s3ResultVal');
+        const s3ResultSub = document.getElementById('s3ResultSub');
+
+        function runSlide3Step() {
+            s3Step++;
+            if (s3Step === 1) {
+                // Step 1: 20 moves into stack
+                s3Tok20.classList.add('active');
+                setTimeout(() => {
+                    s3Tok20.classList.remove('active');
+                    s3Tok20.classList.add('consumed');
+                    s3Slot0.textContent = '20';
+                    s3Slot0.classList.add('filled');
+                }, 280);
+                s3StatusText.innerHTML = '<strong>Step 1:</strong> <code>20</code> moves into the stack.';
+                s3CalcBtn.textContent = 'Calculate (Step 2/6) ▶';
+            } else if (s3Step === 2) {
+                // Step 2: 15 moves into stack
+                s3Tok15.classList.add('active');
+                setTimeout(() => {
+                    s3Tok15.classList.remove('active');
+                    s3Tok15.classList.add('consumed');
+                    s3Slot1.textContent = '15';
+                    s3Slot1.classList.add('filled');
+                }, 280);
+                s3StatusText.innerHTML = '<strong>Step 2:</strong> <code>15</code> moves into the stack.';
+                s3CalcBtn.textContent = 'Calculate (Step 3/6) ▶';
+            } else if (s3Step === 3) {
+                // Step 3: + appears, stack evaluates 20 + 15 = 35
+                s3TokAdd.classList.add('active');
+                s3Slot1.classList.add('popping');
+                s3Slot0.classList.add('popping');
+                setTimeout(() => {
+                    s3TokAdd.classList.remove('active');
+                    s3TokAdd.classList.add('consumed');
+                    s3Slot1.className = 's3-stack-slot';
+                    s3Slot1.innerHTML = '<span class="s3-slot-hint">slot 1</span>';
+                    s3Slot0.className = 's3-stack-slot result-token';
+                    s3Slot0.textContent = '35';
+                }, 280);
+                s3StatusText.innerHTML = '<strong>Step 3:</strong> <code>+</code> appears → stack evaluates <code>20 + 15 = 35</code>.';
+                s3CalcBtn.textContent = 'Calculate (Step 4/6) ▶';
+            } else if (s3Step === 4) {
+                // Step 4: 2 moves into stack for multiplication
+                s3Slot0.className = 's3-stack-slot filled';
+                s3Tok2.classList.add('active');
+                setTimeout(() => {
+                    s3Tok2.classList.remove('active');
+                    s3Tok2.classList.add('consumed');
+                    s3Slot1.textContent = '2';
+                    s3Slot1.classList.add('filled');
+                }, 280);
+                s3StatusText.innerHTML = '<strong>Step 4:</strong> <code>2</code> enters stack for multiplication.';
+                s3CalcBtn.textContent = 'Calculate (Step 5/6) ▶';
+            } else if (s3Step === 5) {
+                // Step 5: × appears, stack evaluates 35 × 2 = 70
+                s3TokMul.classList.add('active');
+                s3Slot1.classList.add('popping');
+                s3Slot0.classList.add('popping');
+                setTimeout(() => {
+                    s3TokMul.classList.remove('active');
+                    s3TokMul.classList.add('consumed');
+                    s3Slot1.className = 's3-stack-slot';
+                    s3Slot1.innerHTML = '<span class="s3-slot-hint">slot 1</span>';
+                    s3Slot0.className = 's3-stack-slot result-token';
+                    s3Slot0.textContent = '70';
+                }, 280);
+                s3StatusText.innerHTML = '<strong>Step 5:</strong> <code>×</code> appears → stack evaluates <code>35 × 2 = 70</code>.';
+                s3CalcBtn.textContent = 'Calculate (Step 6/6) ▶';
+            } else if (s3Step === 6) {
+                // Step 6: Perimeter = 70 appears in Result confirmation card
+                s3ResultCard.classList.add('revealed');
+                s3ResultVal.textContent = 'Perimeter = 70';
+                s3ResultSub.textContent = 'Calculated directly from known values.';
+                s3StatusText.innerHTML = '<strong>Step 6:</strong> <code>Perimeter = 70</code> confirmed.';
+                s3CalcBtn.textContent = 'Calculation Complete ✓';
+                s3CalcBtn.disabled = true;
+                s3ResetBtn.style.display = 'inline-block';
+            }
+        }
+
+        function resetSlide3() {
+            s3Step = 0;
+            s3Tok20.className = 's3-token';
+            s3Tok15.className = 's3-token';
+            s3TokAdd.className = 's3-token s3-tok-op';
+            s3Tok2.className = 's3-token';
+            s3TokMul.className = 's3-token s3-tok-op';
+            s3Slot0.className = 's3-stack-slot';
+            s3Slot0.innerHTML = '<span class="s3-slot-hint">slot 0 (bottom)</span>';
+            s3Slot1.className = 's3-stack-slot';
+            s3Slot1.innerHTML = '<span class="s3-slot-hint">slot 1</span>';
+            s3StatusText.innerHTML = 'Ready. Click <strong>Calculate</strong> to evaluate.';
+            s3CalcBtn.textContent = 'Calculate ▶';
+            s3CalcBtn.disabled = false;
+            s3ResetBtn.style.display = 'none';
+            s3ResultCard.classList.remove('revealed');
+            s3ResultVal.textContent = 'Perimeter = ...';
+            s3ResultSub.textContent = 'Awaiting stack calculation';
+        }
+
+        /* ---------- SLIDE 4 : WHEN EVALUATION ISN'T ENOUGH ---------- */
+        let s4ActiveTab = 0;
+        const s4Tabs = document.querySelectorAll('.s4-tab');
+        const s4Panes = [
+            document.getElementById('s4Pane0'),
+            document.getElementById('s4Pane1'),
+            document.getElementById('s4Pane2')
+        ];
+        const s4PrevTabBtn = document.getElementById('s4PrevTabBtn');
+        const s4NextTabBtn = document.getElementById('s4NextTabBtn');
+        const s4FooterMsg = document.getElementById('s4FooterMsg');
+
+        const s4NavLabels = [
+            'Next: Simplification →',
+            'Next: Stack vs Expression →',
+            'Final Comparison ✓'
+        ];
+
+        function setSlide4Tab(index) {
+            s4ActiveTab = index;
+            s4Tabs.forEach((tab, i) => tab.classList.toggle('active', i === index));
+            s4Panes.forEach((pane, i) => {
+                if (pane) pane.classList.toggle('active', i === index);
+            });
+            if (s4PrevTabBtn) s4PrevTabBtn.disabled = (index === 0);
+            if (s4NextTabBtn) {
+                s4NextTabBtn.disabled = (index === 2);
+                s4NextTabBtn.textContent = s4NavLabels[index];
+            }
+
+            if (index === 0) {
+                s4FooterMsg.textContent = 'The problem is not storing x and y. The problem is that there is no numeric result to calculate yet.';
+            } else if (index === 1) {
+                s4FooterMsg.textContent = 'We never needed to know x. We can simplify without knowing the value.';
+            } else {
+                s4FooterMsg.textContent = "A stack is great for calculation. But calculation alone isn't enough for symbolic expressions.";
+            }
+        }
+
+        function nextSlide4Tab() {
+            if (s4ActiveTab < 2) setSlide4Tab(s4ActiveTab + 1);
+        }
+
+        function prevSlide4Tab() {
+            if (s4ActiveTab > 0) setSlide4Tab(s4ActiveTab - 1);
+        }
+
+        /* Slide 4 - Example 1 */
+        function runS4Ex1() {
+            const tokX = document.getElementById('s4Ex1TokX');
+            const tokY = document.getElementById('s4Ex1TokY');
+            const tokAdd = document.getElementById('s4Ex1TokAdd');
+            const tokMul2 = document.getElementById('s4Ex1TokMul2');
+            const slot0 = document.getElementById('s4Ex1Slot0');
+            const slot1 = document.getElementById('s4Ex1Slot1');
+            const stackNote = document.getElementById('s4Ex1StackNote');
+            const resBox = document.getElementById('s4Ex1ResultBox');
+            const header = document.getElementById('s4Ex1Header');
+            const exprDisplay = document.getElementById('s4Ex1ExprDisplay');
+            const msg = document.getElementById('s4Ex1Msg');
+            const btn = document.getElementById('s4Ex1Btn');
+            const rBtn = document.getElementById('s4Ex1ResetBtn');
+
+            btn.disabled = true;
+            tokX.classList.add('active');
+            setTimeout(() => {
+                tokX.classList.remove('active');
+                tokX.classList.add('consumed');
+                slot0.textContent = 'x';
+                slot0.classList.add('filled');
+                tokY.classList.add('active');
+            }, 300);
+
+            setTimeout(() => {
+                tokY.classList.remove('active');
+                tokY.classList.add('consumed');
+                slot1.textContent = 'y';
+                slot1.classList.add('filled');
+                tokAdd.classList.add('active');
+            }, 600);
+
+            setTimeout(() => {
+                tokAdd.classList.remove('active');
+                tokAdd.classList.add('consumed');
+                tokMul2.classList.add('active');
+                slot0.classList.add('stalled');
+                slot1.classList.add('stalled');
+                stackNote.innerHTML = '<span style="color:var(--red); font-weight:700;">Halted: No Numeric Result</span>';
+
+                resBox.classList.add('stalled');
+                header.innerHTML = '<span style="color:var(--red);">We cannot produce a numeric answer yet.</span>';
+                exprDisplay.style.display = 'block';
+                exprDisplay.textContent = '2 × (x + y)';
+                msg.innerHTML = '<strong>The problem is not storing <code>x</code> and <code>y</code>.</strong><br>The problem is that there is no numeric result to calculate yet.';
+                rBtn.style.display = 'inline-block';
+            }, 950);
+        }
+
+        function resetS4Ex1() {
+            document.getElementById('s4Ex1TokX').className = 's3-token';
+            document.getElementById('s4Ex1TokY').className = 's3-token';
+            document.getElementById('s4Ex1TokAdd').className = 's3-token s3-tok-op';
+            document.getElementById('s4Ex1TokMul2').className = 's3-token s3-tok-op';
+            const slot0 = document.getElementById('s4Ex1Slot0');
+            const slot1 = document.getElementById('s4Ex1Slot1');
+            slot0.className = 's4-stack-cell';
+            slot0.innerHTML = '<span class="s3-slot-hint">slot 0</span>';
+            slot1.className = 's4-stack-cell';
+            slot1.innerHTML = '<span class="s3-slot-hint">slot 1</span>';
+            document.getElementById('s4Ex1StackNote').textContent = 'Empty stack';
+            document.getElementById('s4Ex1Header').textContent = 'Click "Try Evaluation" to push tokens';
+            document.getElementById('s4Ex1ResultBox').classList.remove('stalled');
+            document.getElementById('s4Ex1ExprDisplay').style.display = 'none';
+            document.getElementById('s4Ex1Msg').textContent = 'A stack normally pops numbers and performs arithmetic. Watch what happens when values are unknown variables.';
+            document.getElementById('s4Ex1Btn').disabled = false;
+            document.getElementById('s4Ex1ResetBtn').style.display = 'none';
+        }
+
+        /* Slide 4 - Example 2 */
+        function runS4Ex2() {
+            const card1 = document.getElementById('s4FlowCard1');
+            const card2 = document.getElementById('s4FlowCard2');
+            const card3 = document.getElementById('s4FlowCard3');
+            const val1 = document.getElementById('s4FlowVal1');
+            const finalVal = document.getElementById('s4FlowFinal');
+            const btn = document.getElementById('s4Ex2Btn');
+            const rBtn = document.getElementById('s4Ex2ResetBtn');
+
+            btn.disabled = true;
+            card1.classList.add('active');
+
+            setTimeout(() => {
+                val1.textContent = '0';
+                val1.style.color = 'var(--green)';
+                card1.classList.add('success');
+                card2.classList.add('active');
+            }, 400);
+
+            setTimeout(() => {
+                card3.classList.add('active');
+                card3.classList.add('success');
+                finalVal.textContent = 'Cost = 100';
+                finalVal.style.color = 'var(--green)';
+                rBtn.style.display = 'inline-block';
+            }, 800);
+        }
+
+        function resetS4Ex2() {
+            const card1 = document.getElementById('s4FlowCard1');
+            const card2 = document.getElementById('s4FlowCard2');
+            const card3 = document.getElementById('s4FlowCard3');
+            card1.className = 's4-flow-card';
+            card2.className = 's4-flow-card';
+            card3.className = 's4-flow-card';
+            document.getElementById('s4FlowVal1').textContent = '?';
+            document.getElementById('s4FlowVal1').style.color = 'var(--muted)';
+            document.getElementById('s4FlowFinal').textContent = 'Cost = ...';
+            document.getElementById('s4FlowFinal').style.color = 'var(--muted)';
+            document.getElementById('s4Ex2Btn').disabled = false;
+            document.getElementById('s4Ex2ResetBtn').style.display = 'none';
+        }
+
+
+
+    </script>
+</body>
+</html>
